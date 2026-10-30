@@ -572,6 +572,7 @@ Notas.diagnosticos = g => {
     ["tipo", Y.s("diagnostico")], ["fecha", Y.d(g.fecha)], ["tipo_diagnostico", Y.s(tipo.nombre)],
     ["finca", finca ? Y.l(Nom.finca(finca)) : ""], ["lote", Y.s(g.lote)], ["cafe", cafe ? Y.l(Nom.cafe(cafe)) : ""],
     ["diagnostico_principal", Y.s(r && r.diagnostico_principal)], ["confianza", Y.s(r && r.confianza)], ["urgencia", Y.s(r && r.urgencia)],
+    ["foto", fotos.length ? Y.l(`${fotos[0]}.jpg`) : ""],
     ["analizado_con", Y.s(g.modelo)], ["brewer_app_id", Y.s(g.id)], ["tags", Y.a(["farm-lab/diagnostico-foto"])]
   ]) + `# 📷 ${nombre}
 

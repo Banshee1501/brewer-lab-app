@@ -1,5 +1,5 @@
 /* Brewer Lab · service worker: guarda la app en el teléfono para usarla sin conexión */
-const VERSION = "1.0.2";
+const VERSION = "1.0.3";
 const APP = `brewer-lab-v${VERSION}`;
 const EXT = "brewer-lab-externos";   /* fuentes y librerías de terceros: se reutilizan entre versiones */
 const SHELL = ["./", "index.html", "contenido.js", "nucleo.js", "ia.js", "sync.js", "app.js", "extras.js", "manifest.webmanifest",
