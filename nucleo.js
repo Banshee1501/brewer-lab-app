@@ -675,7 +675,7 @@ B.radar = (v, opts = {}) => {
     const poly = B.areas.map((a, i) => pt(i, R * k / 5).map(x => x.toFixed(1)).join(",")).join(" ");
     s += `<polygon points="${poly}" fill="none" stroke="${col.grid}" stroke-width="1"/>`;
     const [lx, ly] = pt(0, R * k / 5);
-    s += `<text x="${(lx + 6).toFixed(1)}" y="${(ly + 4).toFixed(1)}" font-size="10" fill="${col.txt}" font-family="IBM Plex Mono, monospace">${k}</text>`;
+    s += `<text x="${(lx + 6).toFixed(1)}" y="${(ly + 4).toFixed(1)}" font-size="10" fill="${col.txt}" font-family="Montserrat, Segoe UI, sans-serif">${k}</text>`;
   }
   B.areas.forEach((a, i) => {
     const [x, y] = pt(i, R);
@@ -684,7 +684,7 @@ B.radar = (v, opts = {}) => {
     const c = Math.cos(-Math.PI / 2 + i * 2 * Math.PI / n);
     const anchor = Math.abs(c) < 0.2 ? "middle" : c > 0 ? "start" : "end";
     const dy = ly < cy - R + 10 ? -2 : ly > cy + R - 10 ? 10 : 4;
-    s += `<text x="${lx.toFixed(1)}" y="${(ly + dy).toFixed(1)}" text-anchor="${anchor}" font-size="12" fill="${col.eje}" font-family="Instrument Sans, Segoe UI, sans-serif">${CORTOS[a.key]}</text>`;
+    s += `<text x="${lx.toFixed(1)}" y="${(ly + dy).toFixed(1)}" text-anchor="${anchor}" font-size="12" fill="${col.eje}" font-family="Montserrat, Segoe UI, sans-serif">${CORTOS[a.key]}</text>`;
   });
   const vals = B.areas.map(a => U.num(v["s_" + a.key]));
   if (vals.some(x => x !== null)) {
@@ -727,26 +727,26 @@ Informe.borrador = (visita, finca) => {
 };
 
 Informe.css = `
-.rep{--ri:#1D1A16;--rm:#5F625B;--rl:#D9DCD4;--ra:#2E6B5E;--rc:#A62639;--rs:#EEF2EC;font-family:"Instrument Sans","Segoe UI",Arial,sans-serif;color:var(--ri);background:#fff;line-height:1.5;font-size:13px;max-width:820px;margin:0 auto;padding:0}
+.rep{--ri:#20232A;--rm:#6B6E75;--rl:#ECE6DA;--ra:#20232A;--rc:#A4423A;--rs:#F8F6F1;--rcrema:#FBEBC9;--rarena:#D4C8AE;font-family:"Montserrat","Segoe UI",Arial,sans-serif;color:var(--ri);background:#fff;line-height:1.55;font-size:12.5px;max-width:820px;margin:0 auto;padding:0}
 .rep *{box-sizing:border-box}
-.rep h1,.rep h2,.rep h3{font-family:"Bricolage Grotesque","Segoe UI",Arial,sans-serif;line-height:1.15;margin:0;color:var(--ri)}
-.rep .portada{background:var(--ra);color:#fff;padding:28px 30px 24px;border-radius:14px}
-.rep .portada h1{color:#fff;font-size:28px;letter-spacing:-.01em;margin-top:6px}
-.rep .portada .marca{font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.85}
-.rep .portada .meta{margin-top:12px;font-size:13px;opacity:.95}
-.rep .sec{margin-top:22px;page-break-inside:avoid;break-inside:avoid}
-.rep .sec h2{font-size:17px;border-bottom:2px solid var(--ra);padding-bottom:4px;margin-bottom:10px}
-.rep .kpis{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px}
-.rep .kpi{flex:1 1 150px;border:1px solid var(--rl);border-radius:12px;padding:12px 14px;background:#fff}
-.rep .kpi b{display:block;font-family:"IBM Plex Mono",Consolas,monospace;font-size:26px;font-variant-numeric:tabular-nums;color:var(--ri)}
-.rep .kpi span{font-size:11px;color:var(--rm);text-transform:uppercase;letter-spacing:.06em}
-.rep .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700}
-.rep .pill.ok{background:#DDEFE3;color:#1F5C38}.rep .pill.warn{background:#F8E9CC;color:#7A4E0B}.rep .pill.bad{background:#F6DCDC;color:#8E1B1B}
-.rep table{width:100%;border-collapse:collapse;font-size:12px}
-.rep th{background:var(--rs);text-align:left;font-weight:700;padding:7px 8px;border-bottom:1px solid var(--rl)}
-.rep td{padding:7px 8px;border-bottom:1px solid var(--rl);vertical-align:top}
-.rep .bar{display:inline-block;height:8px;border-radius:4px;background:var(--ra);vertical-align:middle}
-.rep .bar.l1,.rep .bar.l2{background:var(--rc)}.rep .bar.l3{background:#C08A2B}
+.rep h1,.rep h2,.rep h3{font-family:"Playfair Display",Georgia,serif;font-weight:500;line-height:1.15;margin:0;color:var(--ri)}
+.rep .portada{background:var(--rcrema);color:var(--ri);padding:30px 32px 26px;border-radius:18px}
+.rep .portada h1{color:var(--ri);font-size:30px;margin-top:10px}
+.rep .portada .marca{font-size:10px;letter-spacing:.3em;text-transform:uppercase;font-weight:500;color:var(--ri);opacity:.75}
+.rep .portada .meta{margin-top:14px;font-size:12.5px;color:#4A4D55}
+.rep .sec{margin-top:24px;page-break-inside:avoid;break-inside:avoid}
+.rep .sec h2{font-size:19px;border-bottom:1px solid var(--rarena);padding-bottom:6px;margin-bottom:12px}
+.rep .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.rep .kpi{flex:1 1 150px;border-radius:14px;padding:14px 16px;background:var(--rs)}
+.rep .kpi b{display:block;font-family:"Playfair Display",Georgia,serif;font-weight:500;font-size:28px;font-variant-numeric:tabular-nums;color:var(--ri)}
+.rep .kpi span{font-size:9.5px;color:var(--rm);text-transform:uppercase;letter-spacing:.2em;font-weight:500}
+.rep .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:10.5px;font-weight:600;letter-spacing:.02em}
+.rep .pill.ok{background:#E3ECE5;color:#3E6B55}.rep .pill.warn{background:#FBEBC9;color:#7A5A1E}.rep .pill.bad{background:#F6E1DC;color:#A4423A}
+.rep table{width:100%;border-collapse:collapse;font-size:11.5px}
+.rep th{background:var(--rs);text-align:left;font-weight:600;font-size:9.5px;text-transform:uppercase;letter-spacing:.14em;color:var(--rm);padding:8px 9px;border-bottom:1px solid var(--rl)}
+.rep td{padding:8px 9px;border-bottom:1px solid var(--rl);vertical-align:top}
+.rep .bar{display:inline-block;height:7px;border-radius:4px;background:var(--ra);vertical-align:middle}
+.rep .bar.l1,.rep .bar.l2{background:var(--rc)}.rep .bar.l3{background:#C9A15A}
 .rep .radar{width:100%;max-width:520px;display:block;margin:0 auto}
 .rep .cols{display:flex;gap:16px;flex-wrap:wrap}.rep .cols>div{flex:1 1 240px}
 .rep ul{margin:6px 0 0;padding-left:18px}.rep li{margin:3px 0}
@@ -770,7 +770,7 @@ Informe.html = (inf, ctx) => {
 <div class="kpi"><span>Altitud</span><b style="font-size:20px">${(U.num(finca.altitud_min) || U.num(finca.altitud_max)) ? e(`${finca.altitud_min || "?"}–${finca.altitud_max || "?"}`) : "—"}</b><span>m s. n. m.</span></div>
 <div class="kpi"><span>Café</span><b style="font-size:20px">${U.num(finca.area_cafe_ha) === null ? "—" : e(finca.area_cafe_ha)}</b><span>hectáreas</span></div></div>
 <section class="sec"><h2>Resumen ejecutivo</h2><p class="resumen">${e(inf.resumen || "")}</p></section>
-<section class="sec"><h2>Diagnóstico por área</h2>${B.radar(visita, { colores: { grid: "#D9DCD4", txt: "#5F625B", area: "#2E6B5E", eje: "#1D1A16" } })}
+<section class="sec"><h2>Diagnóstico por área</h2>${B.radar(visita, { colores: { grid: "#E2DACB", txt: "#6B6E75", area: "#20232A", eje: "#20232A" } })}
 <table><thead><tr><th>Área</th><th>Puntaje</th><th>Nivel</th><th>Hallazgos</th></tr></thead><tbody>
 ${B.areas.map(a => { const s = U.num(visita["s_" + a.key]); return `<tr><td><strong>${e(a.nombre)}</strong></td><td style="white-space:nowrap">${s === null ? "—" : s + " " + barra(s)}</td><td>${s === null ? "—" : e(B.niveles[s])}</td><td>${e((visita.hallazgos || {})[a.key] || "")}</td></tr>`; }).join("")}
 </tbody></table></section>
@@ -831,7 +831,7 @@ ${(inf.plan || []).map(p => `| ${td(p.plazo)} | ${td(p.area)} | ${td(p.accion)} 
 ${inf.notas ? `\n## 7. Notas\n\n${inf.notas}\n` : ""}`;
 };
 
-Informe.standalone = (inf, ctx) => `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Informe · ${U.esc(ctx.finca.nombre || "")}</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Instrument+Sans:wght@400..700&family=IBM+Plex+Mono:wght@500;600&display=swap"><style>body{margin:0;background:#F3F4F1;padding:24px}@media print{body{background:#fff;padding:0}.rep .sec{page-break-inside:avoid}}${Informe.css}</style></head><body>${Informe.html(inf, ctx)}</body></html>`;
+Informe.standalone = (inf, ctx) => `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Informe · ${U.esc(ctx.finca.nombre || "")}</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300..700&family=Playfair+Display:wght@400..700&display=swap"><style>body{margin:0;background:#F8F6F1;padding:24px}@media print{body{background:#fff;padding:0}.rep .sec{page-break-inside:avoid}}${Informe.css}</style></head><body>${Informe.html(inf, ctx)}</body></html>`;
 
 Informe.pdf = async (inf, ctx) => {
   if (typeof window.html2pdf !== "function") throw { code: "sin_libreria" };
@@ -847,13 +847,13 @@ Informe.pdf = async (inf, ctx) => {
 };
 
 /* ------------------------------ Documentos descargables ------------------------------ */
-B.docHTML = (titulo, cuerpo) => `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${U.esc(titulo)}</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Instrument+Sans:wght@400..700&display=swap"><style>
-body{margin:0;background:#F3F4F1;color:#1D1A16;font:15px/1.6 "Instrument Sans","Segoe UI",Arial,sans-serif;padding:32px 20px}
-main{max-width:760px;margin:0 auto;background:#fff;padding:36px 40px;border-radius:14px}
-h1,h2,h3{font-family:"Bricolage Grotesque","Segoe UI",Arial,sans-serif;line-height:1.2}h1{font-size:30px;margin:0 0 8px}h2{font-size:20px;margin-top:30px;border-bottom:2px solid #2E6B5E;padding-bottom:4px}h3{font-size:16px;margin-top:20px}
-table{border-collapse:collapse;width:100%;font-size:13px;margin:10px 0}th{background:#EEF2EC;text-align:left}th,td{border:1px solid #D9DCD4;padding:6px 8px;vertical-align:top}
-blockquote{margin:12px 0;padding:10px 14px;background:#EEF2EC;border-left:4px solid #2E6B5E;border-radius:6px}.chk{font-size:16px}
-.linea{border-bottom:1px solid #9AA095;height:26px}.caja{border:1px solid #9AA095;border-radius:6px;padding:8px 10px;margin:8px 0}
+B.docHTML = (titulo, cuerpo) => `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${U.esc(titulo)}</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300..700&family=Playfair+Display:wght@400..700&display=swap"><style>
+body{margin:0;background:#F8F6F1;color:#20232A;font:14.5px/1.65 "Montserrat","Segoe UI",Arial,sans-serif;padding:32px 20px}
+main{max-width:760px;margin:0 auto;background:#fff;padding:40px 44px;border-radius:18px}
+h1,h2,h3{font-family:"Playfair Display",Georgia,serif;font-weight:500;line-height:1.2}h1{font-size:34px;margin:0 0 8px}h2{font-size:22px;margin-top:32px;border-bottom:1px solid #D4C8AE;padding-bottom:6px}h3{font-size:17px;margin-top:20px}
+table{border-collapse:collapse;width:100%;font-size:13px;margin:10px 0}th{background:#F8F6F1;text-align:left;font-weight:600}th,td{border:1px solid #ECE6DA;padding:7px 9px;vertical-align:top}
+blockquote{margin:12px 0;padding:12px 16px;background:#FBEBC9;border-left:3px solid #20232A;border-radius:10px}.chk{font-size:16px}
+.linea{border-bottom:1px solid #D4C8AE;height:26px}.caja{border:1px solid #D4C8AE;border-radius:12px;padding:10px 12px;margin:8px 0}
 @media print{body{background:#fff;padding:0}main{padding:0}h2{page-break-after:avoid}.area{page-break-inside:avoid}}
 </style></head><body><main>${cuerpo}</main></body></html>`;
 

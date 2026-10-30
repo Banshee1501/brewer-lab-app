@@ -2,7 +2,7 @@
 (() => {
 "use strict";
 const B = window.BL, U = B.U, S = B.Store, AP = B.app, A = AP.A, R = AP.R;
-B.VERSION = "1.0.3";
+B.VERSION = "1.1.0";
 const { e, go, fld, inText, inDate, inSel, inArea, btn, goBtn, fila, vacio, lectura, pill, cabecera, texto, V, dot, ordenarFecha, fechaHora, toggle, accionesDet } = AP.h;
 const toast = AP.toast;
 const vistas = B.vistas = {};

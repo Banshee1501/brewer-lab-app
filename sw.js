@@ -1,10 +1,10 @@
 /* Brewer Lab · service worker: guarda la app en el teléfono para usarla sin conexión */
-const VERSION = "1.0.3";
+const VERSION = "1.1.0";
 const APP = `brewer-lab-v${VERSION}`;
 const EXT = "brewer-lab-externos";   /* fuentes y librerías de terceros: se reutilizan entre versiones */
 const SHELL = ["./", "index.html", "contenido.js", "nucleo.js", "ia.js", "sync.js", "app.js", "extras.js", "manifest.webmanifest",
-  "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-192.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png"];
-const FUENTES = "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400..700&family=IBM+Plex+Mono:wght@400;500;600&display=swap";
+  "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-192.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png", "img/patron-crema.svg", "img/patron-tinta.svg"];
+const FUENTES = "https://fonts.googleapis.com/css2?family=Montserrat:wght@300..700&family=Playfair+Display:wght@400..700&display=swap";
 const HTML2PDF = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
 /* Datos en vivo: nunca desde la caché */
 const EN_VIVO = ["api.github.com", "api.anthropic.com"];
