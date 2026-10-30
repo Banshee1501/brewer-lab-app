@@ -2,14 +2,14 @@
 (() => {
 "use strict";
 const B = window.BL, U = B.U, S = B.Store, AP = B.app, A = AP.A, R = AP.R;
-B.VERSION = "1.0.1";
+B.VERSION = "1.0.2";
 const { e, go, fld, inText, inDate, inSel, inArea, btn, goBtn, fila, vacio, lectura, pill, cabecera, texto, V, dot, ordenarFecha, fechaHora, toggle, accionesDet } = AP.h;
 const toast = AP.toast;
 const vistas = B.vistas = {};
 const tipo = id => B.tiposDiagnostico.find(t => t.id === id) || B.tiposDiagnostico[0];
 const urls = new Map();
 const analizando = new Set();
-let fotosForm = [], fotosNuevas = new Set(), formActual = null, instalarEvt = null;
+let fotosForm = [], fotosNuevas = new Set(), formActual = null, instalarEvt = null, actualizando = false, recargando = false;
 
 async function urlFoto(id) {
   if (urls.has(id)) return urls.get(id);
@@ -320,16 +320,15 @@ if ("serviceWorker" in navigator) {
         const box = document.getElementById("toasts"); if (!box) return;
         const t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status");
         t.innerHTML = 'Hay una versión nueva de Brewer Lab. <button type="button" class="btn sm">Actualizar</button>';
-        t.querySelector("button").addEventListener("click", () => sw.postMessage({ tipo: "activar" }));
+        t.querySelector("button").addEventListener("click", ev => { ev.currentTarget.disabled = true; actualizando = true; sw.postMessage({ tipo: "activar" }); });
         box.appendChild(t);
       };
       if (reg.waiting && navigator.serviceWorker.controller) avisar(reg.waiting);
       reg.addEventListener("updatefound", () => { const nw = reg.installing; if (nw) nw.addEventListener("statechange", () => { if (nw.state === "installed" && navigator.serviceWorker.controller) avisar(nw); }); });
     } catch (x) { console.warn("Sin modo offline:", x); }
   });
-  /* Recarga solo al aceptar una actualización, no la primera vez que se instala */
-  const habiaControl = !!navigator.serviceWorker.controller; let recargando = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => { if (!habiaControl || recargando) return; recargando = true; location.reload(); });
+  /* Recarga solo cuando la persona acepta una actualización, no la primera vez que se instala */
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (!actualizando || recargando) return; recargando = true; location.reload(); });
 }
 /* Al abrir con internet: análisis en cola y sincronización */
 const alArrancar = () => { pintarRed(); if (navigator.onLine) { B.IA.procesarPendientes().catch(() => {}); B.Sync.programar(2500); } };
