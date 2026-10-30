@@ -1,13 +1,16 @@
 /* Brewer Lab · service worker: guarda la app en el teléfono para usarla sin conexión */
-const VERSION = "1.1.0";
+const VERSION = "2.0.0";
 const APP = `brewer-lab-v${VERSION}`;
 const EXT = "brewer-lab-externos";   /* fuentes y librerías de terceros: se reutilizan entre versiones */
-const SHELL = ["./", "index.html", "contenido.js", "nucleo.js", "ia.js", "sync.js", "app.js", "extras.js", "manifest.webmanifest",
+const SHELL = ["./", "index.html", "firebase-config.js", "contenido.js", "guias.js", "hechos.js", "nucleo.js", "ia.js", "sync.js", "app.js", "extras.js", "labs.js", "escuela-ui.js", "firebase.js", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-192.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png", "img/patron-crema.svg", "img/patron-tinta.svg"];
-const FUENTES = "https://fonts.googleapis.com/css2?family=Montserrat:wght@300..700&family=Playfair+Display:wght@400..700&display=swap";
+/* Archivos que pueden no existir todavía */
+const OPCIONALES = ["escuela.js"];
+const FUENTES = "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Montserrat:wght@300..700&family=Pixelify+Sans:wght@400..700&family=Playfair+Display:wght@400..700&display=swap";
 const HTML2PDF = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
 /* Datos en vivo: nunca desde la caché */
-const EN_VIVO = ["api.github.com", "api.anthropic.com"];
+/* Cuentas, base de datos e IA: nunca pasan por la caché */
+const EN_VIVO = h => (h.endsWith("googleapis.com") && h !== "fonts.googleapis.com") || h.endsWith("firebaseapp.com") || h.endsWith("google.com") || h.endsWith("firebasestorage.app") || h.endsWith("cloudfunctions.net") || h.endsWith("run.app") || h === "api.github.com" || h === "api.anthropic.com";
 
 async function guardarFuentes(cache) {
   const r = await fetch(FUENTES, { mode: "cors" });
@@ -25,6 +28,7 @@ self.addEventListener("install", ev => {
   ev.waitUntil((async () => {
     const app = await caches.open(APP);
     await app.addAll(SHELL.map(u => new Request(u, { cache: "reload" })));
+    for (const u of OPCIONALES) { try { await app.add(new Request(u, { cache: "reload" })); } catch (e) { /* aún no existe */ } }
     const ext = await caches.open(EXT);
     try { await guardarFuentes(ext); } catch (e) { /* sin fuentes: se usan las del sistema */ }
     try { if (!(await ext.match(HTML2PDF))) { const r = await fetch(HTML2PDF, { mode: "cors" }); if (r.ok) await ext.put(HTML2PDF, r); } } catch (e) { /* se guarda al usarse */ }
@@ -46,7 +50,7 @@ self.addEventListener("fetch", ev => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.protocol !== "https:" && url.protocol !== "http:") return;
-  if (EN_VIVO.includes(url.hostname)) return;
+  if (EN_VIVO(url.hostname)) return;
 
   /* La app: primero lo guardado, así abre al instante y sin señal */
   if (url.origin === self.location.origin) {

@@ -7,7 +7,8 @@ const MODELO = "claude-opus-5-5";
 let cliente = null, claveCliente = null, procesando = false;
 
 const IA = B.IA = { MODELO };
-IA.disponible = () => !!(S.ia && S.ia.api_key);
+/* La IA corre en el servidor (Firebase Functions); se activa cuando esté desplegada */
+IA.disponible = () => !!(B.Nube && B.Nube.iaLista);
 
 IA.cliente = async () => {
   const clave = S.ia && S.ia.api_key;

@@ -1,0 +1,72 @@
+rules_version = '2';
+// Brewer Lab · reglas de seguridad
+// - Cada persona lee y escribe solo su perfil y su Brewer Lab (usuarios/{uid}/...).
+// - Una finca la ven solo sus consultores y productores.
+// - El consultor administra la finca; el productor solo agrega sus inspecciones, registros de campo y mediciones de luz.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function dentro() { return request.auth != null; }
+    function soy(uid) { return dentro() && request.auth.uid == uid; }
+    function finca(fid) { return get(/databases/$(database)/documents/fincas/$(fid)).data; }
+    function consultorDe(fid) { return dentro() && request.auth.uid in finca(fid).consultores; }
+    function miembroDe(fid) { return dentro() && (request.auth.uid in finca(fid).consultores || request.auth.uid in finca(fid).productores); }
+    // Quien administra: el consultor, o el productor si su finca todavía no tiene consultor
+    function duenoDe(fid) { return consultorDe(fid) || (dentro() && finca(fid).consultores.size() == 0 && request.auth.uid in finca(fid).productores); }
+
+    match /usuarios/{uid} {
+      allow read, write: if soy(uid);
+      match /{resto=**} {
+        allow read, write: if soy(uid);
+      }
+    }
+
+    match /invitaciones/{codigo} {
+      allow get: if dentro();
+      allow create: if dentro() && request.resource.data.creado_por == request.auth.uid && duenoDe(request.resource.data.finca_id);
+      allow delete: if dentro() && duenoDe(resource.data.finca_id);
+    }
+
+    match /fincas/{fid} {
+      allow read: if dentro() && (request.auth.uid in resource.data.consultores || request.auth.uid in resource.data.productores);
+      allow create: if dentro()
+        && request.resource.data.consultores is list && request.resource.data.productores is list
+        && ((request.resource.data.consultores == [request.auth.uid] && request.resource.data.productores.size() == 0)
+          || (request.resource.data.productores == [request.auth.uid] && request.resource.data.consultores.size() == 0));
+      allow delete: if dentro() && request.auth.uid in resource.data.consultores;
+      allow update: if dentro() && (
+        // El consultor edita todo, sin quitarse a sí mismo
+        (request.auth.uid in resource.data.consultores && request.auth.uid in request.resource.data.consultores)
+        // El productor dueño de una finca sin consultor la puede editar
+        || (resource.data.consultores.size() == 0 && request.auth.uid in resource.data.productores && request.auth.uid in request.resource.data.productores && request.resource.data.consultores == resource.data.consultores)
+        // Unirse con un código de invitación válido
+        || unirse(fid)
+      );
+
+      function unirse(fid) {
+        let inv = get(/databases/$(database)/documents/invitaciones/$(request.resource.data.ultimo_codigo));
+        let campo = inv.data.rol == 'consultor' ? 'consultores' : 'productores';
+        return inv.data.finca_id == fid
+          && !(request.auth.uid in resource.data[campo])
+          && request.resource.data[campo] == resource.data[campo].concat([request.auth.uid])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([campo, 'ultimo_codigo']);
+      }
+
+      match /registros/{rid} {
+        allow read: if miembroDe(fid);
+        allow create, update: if duenoDe(fid)
+          || (miembroDe(fid) && request.resource.data.autor_uid == request.auth.uid && request.resource.data.col in ['inspecciones', 'campo', 'luz', 'diagnosticos']
+              && (resource == null || resource.data.autor_uid == request.auth.uid));
+        allow delete: if duenoDe(fid) || (miembroDe(fid) && resource.data.autor_uid == request.auth.uid);
+      }
+      match /fotos/{foto} {
+        allow read: if miembroDe(fid);
+        allow create, update: if miembroDe(fid) && request.resource.data.autor_uid == request.auth.uid && (resource == null || resource.data.autor_uid == request.auth.uid);
+        allow delete: if duenoDe(fid) || (miembroDe(fid) && resource.data.autor_uid == request.auth.uid);
+      }
+      match /chat/{msg} {
+        allow read: if miembroDe(fid);
+        allow create: if miembroDe(fid) && request.resource.data.autor_uid == request.auth.uid && request.resource.data.rol == 'usuario';
+      }
+    }
+  }
+}

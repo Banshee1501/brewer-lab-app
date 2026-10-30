@@ -2,7 +2,7 @@
 (() => {
 "use strict";
 const B = window.BL, U = B.U, S = B.Store, AP = B.app, A = AP.A, R = AP.R;
-B.VERSION = "1.1.0";
+B.VERSION = "2.0.0";
 const { e, go, fld, inText, inDate, inSel, inArea, btn, goBtn, fila, vacio, lectura, pill, cabecera, texto, V, dot, ordenarFecha, fechaHora, toggle, accionesDet } = AP.h;
 const toast = AP.toast;
 const vistas = B.vistas = {};
@@ -31,7 +31,7 @@ vistas.foto = () => {
   const cola = a.filter(g => g.analisis_pendiente && !g.resultado).length;
   return `<div class="barra"><h2>Diagnóstico con foto</h2>${goBtn("+ Nueva foto", { modo: "form", id: null, borrador: null }, "pri")}</div>
 <p class="lede">Fotografía hojas, frutos o granos. La IA sugiere qué ves (enfermedad, plaga, deficiencia, defecto o nivel de tueste) y qué hacer. Sin señal, la foto se guarda y se analiza al volver internet.</p>
-${!B.IA.disponible() ? `<div class="aviso suave">Para analizar necesitas tu clave de API de Claude. ${goBtn("Agregarla en Ajustes", { tab: "ajustes" }, "link")}</div>` : ""}
+${!B.IA.disponible() ? `<div class="aviso suave">El análisis con IA se está preparando. Mientras tanto, guarda tus fotos: quedan listas para analizarlas en cuanto se active.</div>` : ""}
 ${cola ? `<div class="sync-card"><p><b>${cola}</b> foto${cola === 1 ? "" : "s"} en cola de análisis.</p>${btn("Analizar ahora", "ia-cola", "pri sm", navigator.onLine && B.IA.disponible() ? "" : "disabled")}</div>` : ""}
 <div class="tipos">${B.tiposDiagnostico.map(t => `<button type="button" class="tipo-card" data-go="${go({ modo: "form", id: null, borrador: { tipo: t.id } })}"><b>${e(t.nombre)}</b><small>${e(t.ayuda)}</small></button>`).join("")}</div>
 ${a.length ? `<section class="bloque"><h3>Historial</h3><div class="filas">${a.map(filaDiag).join("")}</div></section>` : ""}`;
@@ -59,7 +59,7 @@ function dFoto(g) {
   const t = tipo(g.tipo), r = g.resultado; const finca = g.finca_id && S.buscar("fincas", g.finca_id);
   const enProceso = analizando.has(g.id) || B.IA.analizando(g.id);
   const accion = enProceso ?`<div class="sync-card analizando"><div class="taza" aria-hidden="true"></div><p>Analizando con IA… suele tardar entre 10 y 60 segundos.</p></div>`
-    : r ? resultadoHTML(r) : `<div class="sync-card"><p>${g.analisis_pendiente ? "En cola: se analizará automáticamente cuando haya internet." : "Aún sin analizar."}</p>${btn("Analizar con IA", "ia-uno", "pri", B.IA.disponible() && navigator.onLine ? "" : "disabled")}${!B.IA.disponible() ? `<p class="help">Agrega tu clave de API en Ajustes.</p>` : ""}</div>`;
+    : r ? resultadoHTML(r) : `<div class="sync-card"><p>${g.analisis_pendiente ? "En cola: se analizará automáticamente cuando haya internet." : "Aún sin analizar."}</p>${btn("Analizar con IA", "ia-uno", "pri", B.IA.disponible() && navigator.onLine ? "" : "disabled")}${!B.IA.disponible() ? `<p class="help">El análisis con IA se activará pronto.</p>` : ""}</div>`;
   return cabecera("Diagnóstico con foto · " + t.nombre, g.titulo || "Foto", [g.fecha, finca && finca.nombre, g.lote].filter(Boolean).join(" · "), g) +
     `<div class="galeria">${(g.fotos || []).map(id => `<img data-foto="${e(id)}" alt="Foto del diagnóstico">`).join("")}</div>${accion}${texto("Notas de campo", g.notas)}
 <div class="aviso suave">Orientativo: confírmalo en campo o en laboratorio antes de decidir, sobre todo si implica agroquímicos.</div>${accionesDet(r && !enProceso ? btn("Volver a analizar", "ia-uno", "", B.IA.disponible() && navigator.onLine ? "" : "disabled") : "")}`;
@@ -87,7 +87,7 @@ async function agregarFotos(files) {
   pintarFotos();
 }
 async function analizarYMostrar(id) {
-  if (!B.IA.disponible()) { toast("Guardado. Agrega tu clave de IA en Ajustes para analizar.", "warn"); return; }
+  if (!B.IA.disponible()) { toast("Guardado ✔ Se analizará cuando se active la IA.", "ok"); return; }
   if (!navigator.onLine) { toast("Guardado sin conexión. Se analizará al volver internet."); return; }
   if (analizando.has(id) || B.IA.analizando(id)) return;
   analizando.add(id); AP.render();
@@ -131,7 +131,7 @@ A.cancelar = async t => {
 
 /* ============================== Informe: IA, PDF e impresión ============================== */
 A.ia = async t => {
-  if (!B.IA.disponible()) { toast("Agrega tu clave de IA en Ajustes.", "warn"); return; }
+  if (!B.IA.disponible()) { toast("La IA para resúmenes se activará pronto.", "warn"); return; }
   if (!navigator.onLine) { toast("Necesitas internet para usar la IA.", "warn"); return; }
   const c = AP.ctxInforme(); if (!c) return;
   const ta = document.getElementById("inf-resumen"); const previo = ta.value;
@@ -152,94 +152,44 @@ A["pdf-compartir"] = async t => {
 };
 A.imprimir = () => { try { window.print(); } catch (x) { toast("Este dispositivo no permite imprimir desde la app.", "warn"); } };
 
-/* ============================== Sincronización ============================== */
+/* ============================== Tu nube ============================== */
 vistas.sync = () => {
-  const p = S.pendientes(); const sy = S.sync || {}; const conf = B.Sync.configurado();
-  const lista = S.COLS.flatMap(c => S.d[c].filter(x => x.sync === "pendiente").map(x => ({ c, x })));
-  const ult = sy.ultimo ? `<p>${pill(sy.fatal ? "Error" : (sy.errores || (sy.conflictos || []).length) ? "Con avisos" : "Completada", sy.fatal ? "bad" : (sy.errores || (sy.conflictos || []).length) ? "warn" : "ok")} ${e(fechaHora(sy.ultimo))} · ${sy.notas || 0} notas y ${sy.fotos || 0} fotos subidas</p>${sy.fatal ? `<p class="help">${e(B.Sync.mensajeError(sy.fatal))}</p>` : ""}${(sy.conflictos || []).length ? `<p class="help">No se sobrescribieron estas notas porque pertenecen a otro registro: ${e(sy.conflictos.join(", "))}</p>` : ""}` : `<p class="muted">Aún no has sincronizado.</p>`;
-  return `<section class="sync"><p class="eyebrow">GitHub · Obsidian</p><h2>Sincronización</h2>
-<p class="lede">Con internet, la app sube tus notas y fotos a tu repositorio privado de GitHub. Desde ahí llegan a tu bóveda de Obsidian.</p>
-<div class="sync-card"><div class="lecturas">${lectura("Notas pendientes", p.total)}${lectura("Fotos pendientes", `<span id="fotos-pend">…</span>`)}${lectura("Conexión", navigator.onLine ? pill("En línea", "ok") : pill("Sin conexión", "warn"))}${lectura("GitHub", conf ? pill(`${S.github.owner}/${S.github.repo}`, "ok") : pill("Sin conectar", "warn"))}</div>
-${conf ? btn(B.Sync.corriendo ? "Sincronizando…" : "Sincronizar ahora", "sync-go", "pri big", B.Sync.corriendo || !navigator.onLine ? "disabled" : "") : goBtn("Conectar GitHub en Ajustes", { tab: "ajustes" }, "pri big")}
-${toggle("pref-auto", (S.prefs || {}).auto_sync !== false, "Sincronizar sola al guardar y al volver internet")}
-<div class="sync-estado">${ult}</div></div>
-<details class="bloque"><summary>Cómo funciona</summary><ol><li>Todo lo que guardas queda en este dispositivo, con o sin señal.</li><li>Con internet, la app sube cada registro como nota de Obsidian (y cada foto) a tu repositorio privado.</li><li>Tu bóveda recibe las notas desde GitHub.</li><li>Si una nota del repositorio pertenece a otro registro, no se sobrescribe.</li><li>Borrar algo en la app no borra su nota en GitHub ni en Obsidian.</li></ol></details>
-${lista.length ? `<section class="bloque"><h3>Registros pendientes</h3><div class="filas">${lista.map(({ c, x }) => `<div class="fila estatica"><span class="fila-txt"><b>${e(S.NOMBRES_COL[c][0])}</b><small>${e(x.ruta || "")}</small></span></div>`).join("")}</div></section>` : ""}</section>`;
-};
-A["sync-go"] = async t => {
-  t.disabled = true; t.textContent = "Sincronizando…";
-  const r = await B.Sync.ejecutar();
-  toast(r.ok ? `Listo ✔ ${r.notas} notas y ${r.fotos} fotos subidas.` : B.Sync.mensajeError(r.code), r.ok ? "ok" : "warn");
-  AP.render();
+  const pend = S.COLS.flatMap(c => S.d[c].filter(x => x.sync === "pendiente"));
+  const correo = B.Nube && B.Nube.correo ? B.Nube.correo() : "";
+  const total = S.COLS.reduce((n, c) => n + S.d[c].length, 0);
+  return `<section class="sync"><p class="eyebrow">Tu cuenta</p><h2>Tus datos en la nube</h2>
+<p class="lede">Todo lo que guardas se sube solo a tu cuenta${correo ? ` (${e(correo)})` : ""}. Sin señal, queda en el teléfono y se sube al volver la conexión.</p>
+<div class="sync-card"><div class="lecturas">${lectura("Conexión", navigator.onLine ? pill("En línea", "ok") : pill("Sin conexión", "warn"))}${lectura("Por subir", pend.length)}${lectura("Registros", total)}</div>
+<p>${pend.length ? `${pend.length} cambio${pend.length === 1 ? "" : "s"} esperando conexión.` : "Todo está guardado en tu cuenta ✔"}</p></div></section>`;
 };
 
-/* ============================== Ajustes ============================== */
+/* ============================== Ajustes y cuenta ============================== */
 vistas.ajustes = () => {
-  const a = S.ajustes || {}, g = S.github || {}, ia = S.ia || {};
+  const a = S.ajustes || {};
+  const N = B.Nube; const perfil = (N && N.perfil) || {};
+  const productor = perfil.rol === "productor";
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const instalada = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
   return `<h2>Ajustes</h2>
-<form class="form" id="faj" novalidate><h3>Tu perfil</h3><p class="help">Tu nombre queda en tus registros. La marca y la firma aparecen en tus informes.</p>
-<div class="grid">${fld("Tu nombre", inText("aj-consultor", a.consultor), { for: "aj-consultor" })}${fld("Marca de la consultoría", inText("aj-marca", a.marca, "Consultoría de café"), { for: "aj-marca" })}${fld("Cargo o título", inText("aj-cargo", a.cargo, "Consultor de calidad"), { for: "aj-cargo" })}${fld("Contacto", inText("aj-contacto", a.contacto, "Correo o teléfono"), { for: "aj-contacto" })}${fld("Ciudad o país", inText("aj-ubicacion", a.ubicacion), { for: "aj-ubicacion" })}</div>
-${fld("Nota al pie de los informes", inArea("aj-nota", a.nota_informe, 2), { for: "aj-nota" })}
+<section class="bloque cuenta"><div class="panel-h"><h3>Tu cuenta</h3>${N && N.usuario ? btn("Cerrar sesión", "salir", "sm") : ""}</div>
+<div class="lecturas">${lectura("Correo", e(N && N.correo ? N.correo() || "—" : "—"))}${lectura("Entras con", e(N && N.proveedor && N.usuario ? N.proveedor() : "—"))}${lectura("Perfil", productor ? "Productor" : "Barista y consultor")}</div></section>
+<form class="form" id="faj" novalidate><h3>Tu perfil</h3><p class="help">Tu nombre aparece en tus registros${productor ? "" : ". La marca y la firma aparecen en tus informes y reportes"}.</p>
+<div class="grid">${fld("Tu nombre", inText("aj-consultor", a.consultor), { for: "aj-consultor" })}${productor ? "" : fld("Marca", inText("aj-marca", a.marca, "Ej. Selah Coffee"), { for: "aj-marca" }) + fld("Cargo o título", inText("aj-cargo", a.cargo, "Consultor de calidad"), { for: "aj-cargo" })}${fld("Contacto", inText("aj-contacto", a.contacto, "Correo o teléfono"), { for: "aj-contacto" })}${fld("Ciudad o país", inText("aj-ubicacion", a.ubicacion), { for: "aj-ubicacion" })}</div>
+${productor ? "" : fld("Nota al pie de los informes", inArea("aj-nota", a.nota_informe, 2), { for: "aj-nota" })}
 <div class="form-acc static">${btn("Guardar perfil", "guardar-perfil", "pri")}</div></form>
-
-<form class="form" id="fgh" novalidate><h3>GitHub · respaldo y Obsidian</h3>
-<p class="help">Tus notas y fotos se suben a un repositorio <b>privado</b> tuyo. Es opcional: sin GitHub, la app sigue funcionando en este dispositivo.</p>
-<div class="grid">${fld("Usuario de GitHub", inText("gh-owner", g.owner, "tu-usuario"), { for: "gh-owner" })}${fld("Repositorio", inText("gh-repo", g.repo || "brewer-lab-datos"), { for: "gh-repo" })}${fld("Rama", inText("gh-branch", g.branch || "main"), { for: "gh-branch" })}</div>
-${fld("Token de acceso", `<input id="gh-token" type="password" autocomplete="off" placeholder="${g.token ? "Guardado. Escribe uno nuevo para cambiarlo" : "github_pat_…"}">`, { for: "gh-token", help: "Se guarda solo en este dispositivo." })}
-<div class="grid">${fld("Nombre para los cambios (opcional)", inText("gh-nombre", g.nombre), { for: "gh-nombre" })}${fld("Correo para los cambios (opcional)", inText("gh-email", g.email, "tu correo de GitHub"), { for: "gh-email" })}</div>
-<details><summary>Cómo crear el token (2 minutos)</summary><ol><li>En github.com entra a <b>Settings → Developer settings → Personal access tokens → Fine-grained tokens</b>.</li><li><b>Generate new token</b>. Nombre: "Brewer Lab". Vencimiento: 1 año.</li><li><b>Repository access → Only select repositories</b> → elige tu repositorio de datos.</li><li><b>Permissions → Repository permissions → Contents: Read and write</b>.</li><li><b>Generate token</b>, cópialo y pégalo aquí.</li></ol></details>
-<div class="form-acc static">${btn("Guardar y probar", "guardar-github", "pri")}${g.token ? btn("Desconectar", "quitar-github", "danger") : ""}</div><p id="gh-estado" class="help"></p></form>
-
-<form class="form" id="fia" novalidate><h3>IA para fotos y resúmenes</h3>
-<p class="help">Usa la API de Claude (${e(B.IA.MODELO)}) con tu propia clave. Se paga por uso en tu cuenta de Anthropic. Las fotos solo salen del teléfono cuando pides un análisis.</p>
-${fld("Clave de API", `<input id="ia-key" type="password" autocomplete="off" placeholder="${ia.api_key ? "Guardada. Escribe una nueva para cambiarla" : "sk-ant-…"}">`, { for: "ia-key", help: "Se guarda solo en este dispositivo. Pon un límite de gasto mensual en tu cuenta." })}
-<details><summary>Cómo conseguir la clave</summary><ol><li>Entra a <b>console.anthropic.com</b> y agrega un método de pago.</li><li>En <b>Settings → Limits</b> fija un límite de gasto mensual.</li><li>En <b>API keys → Create key</b> crea una clave llamada "Brewer Lab" y pégala aquí.</li></ol></details>
-<div class="form-acc static">${btn("Guardar y probar", "guardar-ia", "pri")}${ia.api_key ? btn("Quitar clave", "quitar-ia", "danger") : ""}</div><p id="ia-estado" class="help"></p></form>
-
-<section class="bloque"><h3>Compartir datos entre personas</h3><p class="help">Un productor o alguien de tu equipo puede enviarte sus registros en un archivo. Tú lo importas y queda en tu app, listo para sincronizar.</p>
+${productor ? "" : `<section class="bloque"><h3>Compartir datos</h3><p class="help">Pasa registros a otra persona en un archivo, o importa los que te envíen.</p>
 <div class="grid">${fld("Qué exportar", inSel("exp-finca", "", S.d.fincas.map(f => ({ v: f.id, t: "Solo la finca " + f.nombre })), "Todo"), { for: "exp-finca" })}</div>
-<div class="det-acc">${btn("Exportar y compartir", "exportar", "pri")}<label class="btn"><input type="file" id="imp-archivo" class="vh" accept=".json,application/json">Importar archivo</label></div></section>
-
-<section class="bloque"><h3>Instalar la app</h3>${instalada ? `<p>${pill("Instalada", "ok")} Ya la estás usando como app.</p>` : instalarEvt ? `<p>Instálala para usarla sin conexión, desde tu pantalla de inicio.</p>${btn("Instalar Brewer Lab", "instalar", "pri")}` : ios ? `<ol><li>Abre este link en <b>Safari</b>.</li><li>Toca <b>Compartir</b> (el cuadrado con flecha).</li><li>Elige <b>Agregar a pantalla de inicio</b>.</li></ol>` : `<ol><li>En Chrome toca el menú <b>⋮</b>.</li><li>Elige <b>Instalar app</b> o <b>Agregar a pantalla de inicio</b>.</li></ol>`}</section>
-
-<section class="bloque"><h3>Este dispositivo</h3><p>${S.modo === "local" ? `Tus datos se guardan en este dispositivo${S.persistente ? " (almacenamiento persistente)" : ""}.` : e(S.motivo)}</p>
-<div class="det-acc">${btn("Borrar todos los datos de este dispositivo", "borrar-todo", "danger")}</div><p class="help">Brewer Lab · versión ${e(B.VERSION || "")}</p></section>`;
+<div class="det-acc">${btn("Exportar y compartir", "exportar", "pri")}<label class="btn"><input type="file" id="imp-archivo" class="vh" accept=".json,application/json">Importar archivo</label></div></section>`}
+<section class="bloque"><h3>Instalar la app</h3>${instalada ? `<p>${pill("Instalada", "ok")} Ya la estás usando como app.</p>` : instalarEvt ? `<p>Instálala para abrirla desde tu pantalla de inicio y usarla sin señal.</p>${btn("Instalar Brewer Lab", "instalar", "pri")}` : ios ? `<ol><li>Abre este link en <b>Safari</b>.</li><li>Toca <b>Compartir</b> (el cuadrado con flecha).</li><li>Elige <b>Agregar a pantalla de inicio</b>.</li></ol>` : `<ol><li>En Chrome toca el menú <b>⋮</b>.</li><li>Elige <b>Instalar app</b> o <b>Agregar a pantalla de inicio</b>.</li></ol>`}</section>
+<section class="bloque"><h3>Este dispositivo</h3><p class="help">Tus datos viven en tu cuenta. Este teléfono guarda una copia para que la app funcione sin señal.</p><p class="help">Brewer Lab · versión ${e(B.VERSION || "")}</p></section>`;
 };
 A["guardar-perfil"] = async t => {
   t.disabled = true;
-  try { await S.guardarConfig("ajustes", { consultor: V.t("aj-consultor"), marca: V.t("aj-marca"), cargo: V.t("aj-cargo"), contacto: V.t("aj-contacto"), ubicacion: V.t("aj-ubicacion"), nota_informe: V.t("aj-nota") }); toast("Perfil guardado ✔"); }
+  try { await S.guardarConfig("ajustes", Object.assign({}, S.ajustes, { consultor: V.t("aj-consultor"), marca: V.t("aj-marca") || (S.ajustes || {}).marca, cargo: V.t("aj-cargo") || (S.ajustes || {}).cargo, contacto: V.t("aj-contacto"), ubicacion: V.t("aj-ubicacion"), nota_informe: V.t("aj-nota") || (S.ajustes || {}).nota_informe })); toast("Perfil guardado ✔"); }
   catch (x) { toast("No se pudo guardar.", "bad"); }
   t.disabled = false;
 };
-A["guardar-github"] = async t => {
-  const g = Object.assign({}, S.github, { owner: V.t("gh-owner"), repo: V.t("gh-repo"), branch: V.t("gh-branch") || "main", nombre: V.t("gh-nombre"), email: V.t("gh-email") });
-  const tok = V.t("gh-token"); if (tok) g.token = tok;
-  if (!g.owner || !g.repo || !g.token) { toast("Completa usuario, repositorio y token.", "warn"); return; }
-  t.disabled = true; await S.guardarConfig("github", g);
-  const est = document.getElementById("gh-estado");
-  if (!navigator.onLine) { if (est) est.textContent = "Guardado. Lo pruebo cuando haya internet."; t.disabled = false; return; }
-  try {
-    const r = await B.Sync.probar();
-    const msg = r.ok ? (r.escribir ? `Conectado ✔ ${r.privado ? "Repositorio privado." : "Ojo: el repositorio es público."}` : "Conectado, pero el token no puede escribir: dale permiso Contents: Read and write.") : B.Sync.mensajeError(r.code);
-    if (est) est.textContent = msg; toast(msg, r.ok && r.escribir ? "ok" : "warn");
-    if (r.ok && r.escribir) B.Sync.programar(500);
-  } catch (x) { if (est) est.textContent = "No pude conectar con GitHub."; }
-  t.disabled = false;
-};
-A["quitar-github"] = async () => { await S.guardarConfig("github", {}); toast("GitHub desconectado de este dispositivo."); AP.render(); };
-A["guardar-ia"] = async t => {
-  const k = V.t("ia-key"); const ia = Object.assign({}, S.ia); if (k) ia.api_key = k;
-  if (!ia.api_key) { toast("Pega tu clave de API.", "warn"); return; }
-  t.disabled = true; await S.guardarConfig("ia", ia);
-  const est = document.getElementById("ia-estado");
-  if (!navigator.onLine) { if (est) est.textContent = "Guardada. La pruebo cuando haya internet."; t.disabled = false; return; }
-  try { await B.IA.probar(); if (est) est.textContent = "Clave válida ✔"; toast("Clave de IA lista ✔"); B.IA.procesarPendientes().then(n => { if (n) toast(`${n} análisis pendientes listos ✔`); }); }
-  catch (x) { const m = B.IA.mensajeError(x); if (est) est.textContent = m; toast(m, "warn"); }
-  t.disabled = false;
-};
-A["quitar-ia"] = async () => { await S.guardarConfig("ia", {}); toast("Clave eliminada de este dispositivo."); AP.render(); };
+A.salir = async t => { if (t) t.disabled = true; if (B.Nube && B.Nube.salir) await B.Nube.salir(); };
 A.instalar = async () => { if (!instalarEvt) return; instalarEvt.prompt(); try { await instalarEvt.userChoice; } catch (x) { /* nada */ } instalarEvt = null; AP.render(); };
 A["borrar-todo"] = t => {
   if (t.dataset.confirmar !== "1") { t.dataset.confirmar = "1"; t.textContent = "Toca otra vez: se borrará TODO lo que no hayas sincronizado"; setTimeout(() => { if (t.isConnected) { t.dataset.confirmar = ""; t.textContent = "Borrar todos los datos de este dispositivo"; } }, 5000); return; }

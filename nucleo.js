@@ -66,13 +66,19 @@ const IDB = B.IDB = {
 U.nuevoId = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 
 /* ------------------------------ Almacenamiento ------------------------------ */
-const COLS = ["cafes", "preparaciones", "recetas", "experimentos", "catas", "fincas", "visitas", "lotes", "informes", "diagnosticos", "manuales"];
-const NOMBRES_COL = { cafes: ["café", "cafés"], preparaciones: ["preparación", "preparaciones"], recetas: ["receta", "recetas"], experimentos: ["experimento", "experimentos"], catas: ["cata", "catas"], fincas: ["finca", "fincas"], visitas: ["visita", "visitas"], lotes: ["lote", "lotes"], informes: ["informe", "informes"], diagnosticos: ["diagnóstico con foto", "diagnósticos con foto"], manuales: ["manual", "manuales"] };
+const COLS = ["cafes", "preparaciones", "recetas", "experimentos", "catas", "fincas", "visitas", "lotes", "informes", "diagnosticos", "manuales", "inspecciones", "campo", "luz"];
+const NOMBRES_COL = { cafes: ["café", "cafés"], preparaciones: ["preparación", "preparaciones"], recetas: ["receta", "recetas"], experimentos: ["experimento", "experimentos"], catas: ["cata", "catas"], fincas: ["finca", "fincas"], visitas: ["visita", "visitas"], lotes: ["lote", "lotes"], informes: ["informe", "informes"], diagnosticos: ["diagnóstico con foto", "diagnósticos con foto"], manuales: ["manual", "manuales"], inspecciones: ["inspección con fotos", "inspecciones con fotos"], campo: ["registro de campo", "registros de campo"], luz: ["medición de luz", "mediciones de luz"] };
+/* Colecciones que pertenecen a una finca (Farmer Lab) y se comparten con sus productores */
+const COLS_FINCA = ["visitas", "lotes", "informes", "diagnosticos", "inspecciones", "campo", "luz"];
+B.COLS_FINCA = COLS_FINCA;
 const CONFIGS = ["ajustes", "sync", "github", "ia", "prefs"];
 const Store = B.Store = {
   COLS, NOMBRES_COL, modo: "cargando", motivo: "", listo: false,
   d: Object.fromEntries(COLS.map(c => [c, []])),
   ajustes: {}, sync: {}, github: {}, ia: {}, prefs: {}, _l: new Set(), _fotos: new Map(),
+  /* Con cuenta en la nube, firebase.js pone aquí cómo guardar: { guardar(col, r), borrar(col, r), config(k, v) } */
+  backend: null,
+  async persistir(r) { if (this.backend) await this.backend.guardar(r.col, r); else if (this.modo === "local") await IDB.put("registros", r); },
   on(fn) { this._l.add(fn); },
   emit() { this._l.forEach(fn => { try { fn(); } catch (e) { console.error(e); } }); },
   async init() {
@@ -111,10 +117,10 @@ const Store = B.Store = {
     const nota = B.Notas.generar(col, r);
     r.ruta = nota.ruta; r.md = nota.md;
     Object.keys(r).forEach(k => { if (r[k] === undefined) delete r[k]; });
-    if (this.modo === "local") await IDB.put("registros", r);
     const arr = this.d[col]; const i = arr.findIndex(x => x.id === r.id);
     if (i >= 0) arr[i] = r; else arr.push(r);
     this.emit();
+    await this.persistir(r);
     if (!opts.sinDependientes && previo) await this.regenerarDependientes(col, previo, r);
     if (!opts.silencioso && B.Sync) B.Sync.programar();
     return r.id;
@@ -123,7 +129,7 @@ const Store = B.Store = {
   async marcar(col, id, cambios) {
     const r = this.buscar(col, id); if (!r) return;
     Object.assign(r, cambios);
-    if (this.modo === "local") await IDB.put("registros", r);
+    await this.persistir(r);
     this.emit();
   },
   /* Importa registros de otra persona o de otro dispositivo */
@@ -135,7 +141,7 @@ const Store = B.Store = {
       if (actual && (actual.actualizado || "") >= (x.actualizado || "")) continue;
       const r = Object.assign({}, x, { sync: "pendiente" }); delete r.gh_sha; delete r.hash_sync; delete r.obsidian;
       const nota = B.Notas.generar(r.col, r); r.ruta = nota.ruta; r.md = nota.md;
-      if (this.modo === "local") await IDB.put("registros", r);
+      await this.persistir(r);
       const arr = this.d[r.col]; const i = arr.findIndex(y => y.id === r.id); if (i >= 0) arr[i] = r; else arr.push(r);
       n++;
     }
@@ -158,16 +164,20 @@ const Store = B.Store = {
   },
   async eliminar(col, id) {
     const r = this.buscar(col, id);
-    if (this.modo === "local") await IDB.del("registros", id);
+    if (this.backend) { if (r) await this.backend.borrar(col, r); }
+    else if (this.modo === "local") await IDB.del("registros", id);
     this.d[col] = this.d[col].filter(x => x.id !== id);
     if (r && col === "diagnosticos") for (const f of (r.fotos || [])) { try { const ft = await this.foto(f); if (ft && ft.sync !== "sincronizado") await this.borrarFoto(f); } catch (e) { /* sin foto */ } }
     this.emit();
   },
   async guardarConfig(k, data) {
     this[k] = Object.assign({}, data);
-    if (this.modo === "local") await IDB.put("config", { k, v: this[k] });
+    if (this.backend && ["ajustes", "prefs"].includes(k)) await this.backend.config(k, this[k]);
+    else if (this.modo === "local") await IDB.put("config", { k, v: this[k] });
     this.emit();
-  }
+  },
+  /* Al cerrar sesión: vacía lo que hay en memoria */
+  vaciar() { COLS.forEach(c => { this.d[c] = []; }); this.ajustes = {}; this.prefs = {}; this.emit(); }
 };
 
 /* ------------------------------ Notas para Obsidian ------------------------------ */
@@ -215,7 +225,33 @@ const Notas = B.Notas = {};
 Notas.generar = (col, r) => {
   const g = Notas[col];
   if (!g) return { ruta: "", md: "" };
-  return g(r);
+  const nota = g(r);
+  /* Las notas del lado fincas llevan además el tema Farmer Lab en Obsidian */
+  if (col === "fincas" || COLS_FINCA.includes(col)) nota.md = nota.md.replace("cssclasses:\n  - brewer-lab\n", "cssclasses:\n  - brewer-lab\n  - farmer-lab\n");
+  return nota;
+};
+
+/* Lo que registra el productor desde su portal */
+const carpetaFinca = r => { const f = r.finca_id ? Store.buscar("fincas", r.finca_id) : null; return f ? `${FINCAS}/${Nom.finca(f)}` : `${BASE}/09 Coffee Farm Lab/Sin finca`; };
+const lineaFinca = r => { const f = r.finca_id ? Store.buscar("fincas", r.finca_id) : null; return f ? Y.l(Nom.finca(f)) : ""; };
+Notas.inspecciones = x => {
+  const nombre = U.nombreNota(`${x.fecha || U.hoy()} · Inspección · ${x.titulo || x.zona || "fotos"}`);
+  const fotos = x.fotos || [];
+  const md = fm([["tipo", Y.s("inspeccion")], ["fecha", Y.d(x.fecha)], ["finca", lineaFinca(x)], ["zona", Y.s(x.zona)], ["tema", Y.s(x.tema)], ["estado", Y.s(x.estado || "por revisar")], ["autor", Y.s(x.autor)], ["brewer_app_id", Y.s(x.id)], ["tags", Y.a(["farm-lab/inspeccion"])]])
+    + `# 🔎 ${nombre}\n\n${fotos.length ? fotos.map(f => `![[${f}.jpg|360]]`).join("\n") : "_Sin fotos._"}\n\n## Lo que reporta el productor\n\n${bloque(x.notas)}\n\n## Respuesta del consultor\n\n${bloque(x.respuesta, "_Pendiente._")}\n`;
+  return { ruta: `${carpetaFinca(x)}/Inspecciones/${nombre}.md`, md };
+};
+Notas.campo = x => {
+  const nombre = U.nombreNota(`${x.fecha || U.hoy()} · ${x.actividad || "Registro de campo"}`);
+  const md = fm([["tipo", Y.s("registro_campo")], ["fecha", Y.d(x.fecha)], ["finca", lineaFinca(x)], ["actividad", Y.s(x.actividad)], ["lote", Y.s(x.lote)], ["cantidad", Y.s(x.cantidad)], ["autor", Y.s(x.autor)], ["brewer_app_id", Y.s(x.id)], ["tags", Y.a(["farm-lab/campo"])]])
+    + `# 🌱 ${nombre}\n\n${bloque(x.notas)}\n`;
+  return { ruta: `${carpetaFinca(x)}/Registros de campo/${nombre}.md`, md };
+};
+Notas.luz = x => {
+  const nombre = U.nombreNota(`${x.fecha || U.hoy()} · Luz · ${x.lugar || "medición"}`);
+  const md = fm([["tipo", Y.s("medicion_luz")], ["fecha", Y.d(x.fecha)], ["finca", lineaFinca(x)], ["lugar", Y.s(x.lugar)], ["lux_sol", Y.n(x.lux_sol)], ["lux_sombra", Y.n(x.lux_sombra)], ["sombra_pct", Y.n(x.sombra_pct)], ["autor", Y.s(x.autor)], ["brewer_app_id", Y.s(x.id)], ["tags", Y.a(["farm-lab/sombra"])]])
+    + `# ☀️ ${nombre}\n\n| Lectura | Valor |\n|---|---|\n| A pleno sol | ${x.lux_sol ?? "—"} lux aprox. |\n| Bajo la copa | ${x.lux_sombra ?? "—"} lux aprox. |\n| Sombra estimada | ${x.sombra_pct ?? "—"} % |\n\n${bloque(x.notas, "")}\n`;
+  return { ruta: `${carpetaFinca(x)}/Sombra/${nombre}.md`, md };
 };
 
 Notas.cafes = c => {

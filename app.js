@@ -5,7 +5,10 @@ const B = window.BL, U = B.U, S = B.Store, C = B.Calc, L = B.listas;
 const e = U.esc;
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
-const R = { tab: "inicio", subs: { barista: "bitacora", aprende: "tutoriales" }, col: null, modo: "lista", id: null, padre: null, borrador: null, manual: null };
+const R = { tab: "inicio", lab: "brewer", subs: { barista: "bitacora", aprende: "tutoriales", escuela: "modulos", fescuela: "modulos", breportes: "resumen", freportes: "fincas" }, col: null, modo: "lista", id: null, padre: null, borrador: null, manual: null };
+/* Pestañas de cada laboratorio: Brewer Lab (barista), Farmer Lab (consultor de fincas) y el portal del productor */
+const LABS = { brewer: ["inicio", "barista", "cata", "breportes", "escuela", "aprende"], farmer: ["farm", "fincas", "foto", "lux", "freportes", "fescuela"], productor: ["pinicio", "pfinca", "pfotos", "pluz", "granito"] };
+const labDe = tab => Object.keys(LABS).find(k => LABS[k].includes(tab)) || null;
 const SUB2COL = { bitacora: "preparaciones", cafes: "cafes", recetas: "recetas", experimentos: "experimentos" };
 const PROC = { "Lavado": "LAV", "Natural": "NAT", "Honey": "HON", "Anaeróbico": "ANA", "Maceración carbónica": "MCA", "Doble fermentación": "DFE", "Semilavado": "SEM", "Experimental": "EXP" };
 
@@ -17,14 +20,14 @@ function toast(msg, tipo = "ok") {
 }
 const go = obj => e(JSON.stringify(obj));
 const pill = (t, c = "") => `<span class="pill ${c}">${e(t)}</span>`;
-const syncPill = r => r.sync === "sincronizado" ? pill("En Obsidian", "ok") : pill("Pendiente", "warn");
+const syncPill = r => r.sync === "sincronizado" ? pill("En la nube", "ok") : pill("Por subir", "warn");
 const btn = (txt, act, cls = "", extra = "") => `<button type="button" class="btn ${cls}" data-act="${act}" ${extra}>${txt}</button>`;
 const goBtn = (txt, obj, cls = "") => `<button type="button" class="btn ${cls}" data-go="${go(obj)}">${txt}</button>`;
 const fila = ({ titulo, meta, der = "", obj }) => `<button type="button" class="fila" data-go="${go(obj)}"><span class="fila-txt"><b>${e(titulo)}</b><small>${e(meta || "")}</small></span><span class="fila-der">${der}</span></button>`;
 const vacio = (titulo, texto, accion = "") => `<div class="vacio"><p class="vacio-t">${e(titulo)}</p><p>${e(texto)}</p>${accion}</div>`;
 const lectura = (etq, valor, unidad = "", extra = "") => `<div class="lectura"><span class="lec-et">${etq}</span><b class="lec-v">${valor}</b>${unidad ? `<span class="lec-u">${unidad}</span>` : ""}${extra}</div>`;
 const dato = (k, v) => (v === null || v === undefined || v === "" || (Array.isArray(v) && !v.length)) ? "" : `<div><dt>${e(k)}</dt><dd>${e(Array.isArray(v) ? v.join(", ") : v)}</dd></div>`;
-const syncInfo = r => `<div class="sync-info">${syncPill(r)}<small>${r.obsidian ? "📁 " + e(r.obsidian) : "Irá a: " + e(r.ruta || "")}</small></div>`;
+const syncInfo = r => `<div class="sync-info">${syncPill(r)}${r.autor ? `<small>por ${e(r.autor)}</small>` : ""}</div>`;
 const texto = (t, s) => (s && String(s).trim()) ? `<section class="bloque"><h3>${t}</h3><p class="pre">${e(s)}</p></section>` : "";
 
 /* Campos de formulario */
@@ -78,10 +81,14 @@ async function compartir(nombre, data, titulo) {
 const errorGuardar = err => { const c = err && (err.name || err.code); return c === "QuotaExceededError" ? "El almacenamiento de este dispositivo está lleno: libera espacio o elimina registros antiguos." : "No se pudo guardar en este dispositivo. Inténtalo otra vez."; };
 
 /* ------------------------------ Navegación ------------------------------ */
-function colActual() { if (R.tab === "barista") return SUB2COL[R.subs.barista]; if (R.tab === "cata") return "catas"; if (R.tab === "fincas") return R.col || "fincas"; if (R.tab === "foto") return "diagnosticos"; return null; }
+function colActual() { if (R.tab === "barista") return SUB2COL[R.subs.barista]; if (R.tab === "cata") return "catas"; if (R.tab === "fincas") return R.col || "fincas"; if (R.tab === "foto") return "diagnosticos"; if (R.tab === "pfotos") return "inspecciones"; if (R.tab === "pluz" || R.tab === "lux") return "luz"; return null; }
 function ir(c) {
   if (c.tab && c.tab !== R.tab) { R.modo = "lista"; R.id = null; R.padre = null; R.borrador = null; R.manual = null; R.col = c.tab === "fincas" ? "fincas" : null; }
+  /* El productor solo ve su portal */
+  if (c.tab && document.body.dataset.rol === "productor" && !LABS.productor.includes(c.tab) && !["ajustes", "sync"].includes(c.tab)) c = Object.assign({}, c, { tab: "pinicio" });
   Object.assign(R, c);
+  const lab = labDe(R.tab); if (lab) R.lab = lab;
+  document.body.dataset.lab = R.lab === "brewer" ? "brewer" : "farmer";
   if (!("borrador" in c) && R.modo !== "form") R.borrador = null;
   render();
   try { window.scrollTo({ top: 0, behavior: "instant" }); } catch (x) { window.scrollTo(0, 0); }
@@ -98,6 +105,7 @@ function pintarCabecera() {
 /* ------------------------------ Render ------------------------------ */
 function render() {
   pintarCabecera();
+  document.body.dataset.lab = R.lab === "brewer" ? "brewer" : "farmer";
   const m = document.getElementById("main"); if (!m) return;
   let h = "";
   if (!S.listo) h = `<div class="cargando"><div class="taza" aria-hidden="true"></div><p>Abriendo tu laboratorio…</p></div>`;
@@ -546,10 +554,10 @@ function vFincas() {
   if (R.modo === "ver") {
     const r = S.buscar(col, R.id);
     if (!r) return vacio("No encontré este registro", "Puede que se haya eliminado.", goBtn("Volver a fincas", { col: "fincas", modo: "lista", id: null }));
-    return (col === "fincas" ? "" : volverFinca()) + ({ fincas: dFinca, visitas: dVisita, lotes: dLote }[col])(r);
+    return (col === "fincas" ? "" : volverFinca()) + (({ fincas: dFinca, visitas: dVisita, lotes: dLote })[col] || (B.det && B.det[col]) || (() => ""))(r);
   }
   const a = [...S.d.fincas].sort((x, y) => (x.nombre || "").localeCompare(y.nombre || ""));
-  return `<div class="barra"><h2>Coffee Farm Lab</h2><div class="barra-acc">${btn("Ficha de campo imprimible", "ficha-campo", "ghost")}${goBtn("+ Nueva finca", { col: "fincas", modo: "form", id: null }, "pri")}</div></div>
+  return `<div class="barra"><h2>Fincas</h2><div class="barra-acc">${btn("Ficha de campo imprimible", "ficha-campo", "ghost")}${goBtn("+ Nueva finca", { col: "fincas", modo: "form", id: null }, "pri")}</div></div>
 ${a.length ? `<div class="filas">${a.map(filaFinca).join("")}</div>` : vacio("Tu primera finca", "Crea la ficha de la finca y luego registra la visita de diagnóstico con las 13 áreas.")}`;
 }
 function volverFinca() { const fid = R.padre || (R.col === "fincas" ? R.id : null); const f = fid && S.buscar("fincas", fid); return f ? `<button type="button" class="volver" data-go="${go({ col: "fincas", modo: "ver", id: f.id, padre: null })}">← ${e(f.nombre)}</button>` : `<button type="button" class="volver" data-go="${go({ col: "fincas", modo: "lista", id: null })}">← Fincas</button>`; }
@@ -564,7 +572,7 @@ ${(f.parcelas || []).length ? `<section class="bloque"><h3>Parcelas</h3><div cla
 <section class="bloque"><div class="panel-h"><h3>Lotes</h3>${goBtn("+ Nuevo lote", { col: "lotes", modo: "form", id: null, padre: f.id }, "sm")}</div>${lotes.length ? `<div class="filas">${lotes.map(l => fila({ titulo: l.codigo, meta: [l.proceso, U.lista(l.variedad).join(", "), l.estado].filter(Boolean).join(" · "), der: (U.num(l.puntaje_cva) !== null ? `<span class="score">${U.fmt(l.puntaje_cva, 2)}</span>` : "") + dot(l), obj: { col: "lotes", modo: "ver", id: l.id, padre: f.id } })).join("")}</div>` : `<p class="muted">Registra cada lote con su código para tener trazabilidad.</p>`}</section>
 <section class="bloque"><h3>Informes</h3>${infs.length ? `<div class="filas">${infs.map(i => fila({ titulo: `${i.fecha} · Informe de diagnóstico`, meta: "Toca para abrir, editar o descargar", der: dot(i), obj: { col: "informes", modo: "informe", id: i.id, padre: f.id } })).join("")}</div>` : `<p class="muted">Genera el informe desde una visita.</p>`}</section>
 <section class="bloque"><div class="panel-h"><h3>Diagnósticos con foto</h3>${goBtn("+ Foto con IA", { tab: "foto", modo: "form", id: null, borrador: { finca_id: f.id } }, "sm")}</div>${(() => { const ds = ordenarFecha(S.d.diagnosticos.filter(g => g.finca_id === f.id)); return ds.length ? `<div class="filas">${ds.map(g => fila({ titulo: `${g.fecha} · ${g.titulo || "Foto"}`, meta: g.resultado ? g.resultado.diagnostico_principal : "Pendiente de análisis", der: dot(g), obj: { tab: "foto", modo: "ver", id: g.id } })).join("")}</div>` : `<p class="muted">Toma fotos de hojas, frutos o granos y analízalas con IA.</p>`; })()}</section>
-${texto("Infraestructura", f.infraestructura)}${texto("Plan de acción vigente", f.plan)}${accionesDet()}`;
+${B.labs && B.labs.extraFinca ? B.labs.extraFinca(f) : ""}${texto("Infraestructura", f.infraestructura)}${texto("Plan de acción vigente", f.plan)}${accionesDet()}`;
 }
 function dVisita(v) {
   const idx = C.indice(v), sem = C.semaforo(idx); const h = v.hallazgos || {};
@@ -743,11 +751,13 @@ document.addEventListener("submit", ev => ev.preventDefault());
 
 /* ------------------------------ Interfaz compartida con extras.js ------------------------------ */
 B.app = { R, ir, render, toast, A, FORMS, LIVE, DET, descargar, compartir, liveActual, pintarCabecera, actualizarPrev, ctxInforme, infDesdeForm, nombreArchivo,
-  h: { e, go, fld, inText, inNum, inDate, inSel, inSelG, inArea, chips, seg, fldSeg, toggle, btn, goBtn, fila, vacio, lectura, pill, syncPill, syncInfo, cabecera, accionesDet, dato, texto, V, dot, ordenarFecha, fechaHora, subtabs, formAcciones } };
+  LABS, labDe, vInicio, vAprende, vManual, vReferencias,
+  h: { e, go, fld, inText, inNum, inDate, inSel, inSelG, inArea, chips, seg, fldSeg, toggle, btn, goBtn, fila, vacio, lectura, pill, syncPill, syncInfo, cabecera, accionesDet, dato, texto, V, dot, ordenarFecha, fechaHora, subtabs, formAcciones, filaPrep, filaCafe, filaFinca, stat } };
 
 /* ------------------------------ Arranque ------------------------------ */
 S.on(() => { if (R.modo === "form" || R.modo === "informe") { pintarCabecera(); return; } render(); });
-try { const h = (location.hash || "").replace("#", ""); if (["inicio", "barista", "cata", "foto", "fincas", "aprende", "ajustes", "sync"].includes(h)) R.tab = h; } catch (x) { /* sin hash */ }
+try { const h = (location.hash || "").replace("#", ""); if (labDe(h) || ["ajustes", "sync"].includes(h)) { R.tab = h; R.lab = labDe(h) || R.lab; } } catch (x) { /* sin hash */ }
 render();
-S.init();
+/* Con cuenta en la nube, firebase.js abre la sesión; sin configuración, la app guarda solo en el dispositivo */
+if (!B.firebaseConfig) S.init();
 })();
